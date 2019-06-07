@@ -8,6 +8,8 @@ class Coin {
         Point center;
         int radius;
         double correlation;
+        double radiusNorm;
+        float value;
 
         Coin(Point center_, int radius_, double correlation_){
             center = center_;
@@ -68,6 +70,20 @@ Mat_<FLT> generateCircle(int size){
     circleTemplate = trataModelo(circleTemplate, 128.0 / 255.0);
 
     return circleTemplate;
+}
+
+vector<Coin> coinClassifier(vector<Coin> coins){
+    int maxRadius = 0;
+    for(vector<Coin>::iterator coin = coins.begin(); coin != coins.end(); ++coin){
+        if(coin->radius > maxRadius){
+            maxRadius = coin->radius;
+        }
+    }
+    for(vector<Coin>::iterator coin = coins.begin(); coin != coins.end(); ++coin){
+        coin->radiusNorm = (float)coin->radius / (float)maxRadius;
+    }
+    
+    return coins;
 }
 
 
@@ -173,11 +189,6 @@ int main(int argc, char** argv){
     coins = cleanCoins(coins);
     cout << "Coins: " << coins.size() << endl;
 
-    for(vector<Coin>::iterator coinsIt = coins.begin(); coinsIt != coins.end(); ++coinsIt){
-        cout << "(" << (coinsIt->center.x) << ", " << (coinsIt->center.y) << ")";
-        cout << " corr: " << coinsIt->correlation;
-        cout << " radius: " << coinsIt->radius << endl;
-    }
 
     // Pintando moedas na imagem
     for(vector<Coin>::iterator coinsIt = coins.begin(); coinsIt != coins.end(); ++coinsIt){
@@ -190,6 +201,17 @@ int main(int argc, char** argv){
             FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(0,0,255), 1, CV_AA);
     
     mostra(resizedImage);
+    
+    // classificando moedas
+    coins = coinClassifier(coins);
+    
+
+    for(vector<Coin>::iterator coinsIt = coins.begin(); coinsIt != coins.end(); ++coinsIt){
+        cout << "(" << (coinsIt->center.x) << ", " << (coinsIt->center.y) << ")";
+        cout << "\tcorr: " << coinsIt->correlation;
+        cout << "\tradius: " << coinsIt->radius;
+        cout << "\tnormaized radius: " << coinsIt->radiusNorm << endl;
+    }
 
     //imp(resizedImage, argv[2]);
 
