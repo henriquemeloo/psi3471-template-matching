@@ -1,6 +1,8 @@
 #include <cekeikon.h>
 #include <vector>
 #include <string>
+#include <iomanip>
+#include <sstream>
 using namespace std;
 
 class Coin {
@@ -12,9 +14,10 @@ class Coin {
         float value;
 
         Coin(Point center_, int radius_, double correlation_){
-            center = center_;
-            radius = radius_;
-            correlation = correlation_;
+            this->center = center_;
+            this->radius = radius_;
+            this->correlation = correlation_;
+            this->value = 0.0;
         }
 };
 
@@ -81,6 +84,16 @@ vector<Coin> coinClassifier(vector<Coin> coins){
     }
     for(vector<Coin>::iterator coin = coins.begin(); coin != coins.end(); ++coin){
         coin->radiusNorm = (float)coin->radius / (float)maxRadius;
+        
+        if(coin->radiusNorm >= .98){
+            coin->value = 1.0;
+        }
+        else if(coin->radiusNorm >= .9){
+            coin->value = .25;
+        }
+        else if(coin->radiusNorm < .8){
+            coin->value = .1;
+        }
     }
     
     return coins;
@@ -189,11 +202,20 @@ int main(int argc, char** argv){
     coins = cleanCoins(coins);
     cout << "Coins: " << coins.size() << endl;
 
+    // classificando moedas
+    coins = coinClassifier(coins);
 
     // Pintando moedas na imagem
     for(vector<Coin>::iterator coinsIt = coins.begin(); coinsIt != coins.end(); ++coinsIt){
         circle(resizedImage, coinsIt->center, 3, Scalar(0, 0, 255), -1);
         circle(resizedImage, coinsIt->center, coinsIt->radius, Scalar(0, 0, 255), 2);
+        
+        stringstream stream;
+        stream << fixed << setprecision(2) << coinsIt->value;
+        string s = stream.str();
+        string coinText = string("R$") + s;
+        putText(resizedImage, coinText, coinsIt->center, 
+                FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(0,0,255), 1, CV_AA);
     }
     // Escrevendo total de moedas
     string coinsText = string("Ha ") + to_string(coins.size()) + " moedas.";
@@ -202,15 +224,12 @@ int main(int argc, char** argv){
     
     mostra(resizedImage);
     
-    // classificando moedas
-    coins = coinClassifier(coins);
-    
-
     for(vector<Coin>::iterator coinsIt = coins.begin(); coinsIt != coins.end(); ++coinsIt){
         cout << "(" << (coinsIt->center.x) << ", " << (coinsIt->center.y) << ")";
         cout << "\tcorr: " << coinsIt->correlation;
         cout << "\tradius: " << coinsIt->radius;
-        cout << "\tnormaized radius: " << coinsIt->radiusNorm << endl;
+        cout << "\tnormaized radius: " << coinsIt->radiusNorm;
+        cout << "\tvalue: " << coinsIt->value << endl;
     }
 
     //imp(resizedImage, argv[2]);
