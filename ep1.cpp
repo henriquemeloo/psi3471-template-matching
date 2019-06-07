@@ -51,22 +51,19 @@ vector<Coin> cleanCoins(vector<Coin> coins){
     return coins;
 }
 
-Mat_<FLT> generateCircle(int size, double ratio){
+Mat_<FLT> generateCircle(int size){
     // calculando dimensao do template
-    int dimension = (int) (ratio * size);
-    if (dimension % 2 == 0) dimension--;
+    if (size % 2 == 0) size--;
 
     // criando o template de fundo cinza
-    Mat_<FLT> circleTemplate(dimension, dimension, 128.0 / 255);
+    Mat_<FLT> circleTemplate(size, size, 128.0 / 255);
     
     // criando o circulo
-    double center = dimension / 2 + .5;
-    int radius = (int) center;
+    double center = size / 2 + .5;
     //contorno branco
-    circle(circleTemplate, Point(center, center), radius, 1.0, -1);
+    circle(circleTemplate, Point(center, center), center, 1.0, 1);
     // preenchimento preto
-    circle(circleTemplate, Point(center, center), radius - 1, 0.0, -1);
-
+    circle(circleTemplate, Point(center, center), center - 1, 0.0, -1);
     // tratando modelo para cancelar nivel dc e soma absoluta 2
     circleTemplate = trataModelo(circleTemplate, 128.0 / 255.0);
 
@@ -96,9 +93,9 @@ int main(int argc, char** argv){
     
     // Suavizando imagem -------------------------------------------------
     Mat_<COR> maskBuilder;
-    GaussianBlur(resizedImage, maskBuilder, Size(5,5), 0);
+    //GaussianBlur(resizedImage, maskBuilder, Size(5,5), 0);
     // Convertendo imagem suavizada para HSV -----------------------------
-    cvtColor(maskBuilder, maskBuilder, CV_BGR2HSV);
+    cvtColor(resizedImage, maskBuilder, CV_BGR2HSV);
     // Filtrando por niveis HSV ------------------------------------------
     Mat_<FLT> maskImage(maskBuilder.rows, maskBuilder.cols, 0.0);
     for (int i = 0; i < maskBuilder.total(); i++){
@@ -117,11 +114,12 @@ int main(int argc, char** argv){
     Mat_<FLT> circleTemplate;
     Mat_<FLT> match;
     vector<Coin> coins;
-    //set<tuple<int, int>> coinLocations;
-    for(double templateRatio = .1; templateRatio <= .2; templateRatio += .0005){
+    int count=0;
+    for(int templateSize = .1 * maskImage.rows; templateSize < .2*maskImage.rows; templateSize++){
+        if (templateSize % 2 == 0) continue;
+        count++;
         // Gerando o template --------------------------------------------
-        //cout << "Ratio: " << templateRatio << endl;
-        circleTemplate = generateCircle(maskImage.rows, templateRatio);
+        circleTemplate = generateCircle(templateSize);
         //mostra(circleTemplate);
 
         // Fazendo template matching -------------------------------------
@@ -159,7 +157,8 @@ int main(int argc, char** argv){
         for(int i = 0; i < match.rows; i++){
             for(int j = 0; j < match.cols; j++){
                 if(match(i, j) > 0){
-                    int radius = (int) (maskImage.rows * templateRatio / 2 + .5);
+                    //template tem borda branca
+                    int radius = templateSize / 2 - 1;
                     Coin coin(Point(j, i),
                               radius,
                               match(i, j));
@@ -168,7 +167,7 @@ int main(int argc, char** argv){
             }
         }
     }
-    
+    cout << count << " templates"<<endl;
     // Limpando lista de moedas -----------------------------------------
     cout << "Coins: " << coins.size() << endl;
     coins = cleanCoins(coins);
@@ -183,9 +182,8 @@ int main(int argc, char** argv){
     // Pintando moedas na imagem
     for(vector<Coin>::iterator coinsIt = coins.begin(); coinsIt != coins.end(); ++coinsIt){
         circle(resizedImage, coinsIt->center, 3, Scalar(0, 0, 255), -1);
-        circle(resizedImage, coinsIt->center, coinsIt->radius, Scalar(0, 0, 255), 3);
+        circle(resizedImage, coinsIt->center, coinsIt->radius, Scalar(0, 0, 255), 2);
     }
-
     // Escrevendo total de moedas
     string coinsText = string("Ha ") + to_string(coins.size()) + " moedas.";
     putText(resizedImage, coinsText, cvPoint(30,30), 
