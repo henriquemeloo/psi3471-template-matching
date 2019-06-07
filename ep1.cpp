@@ -75,7 +75,7 @@ Mat_<FLT> generateCircle(int size){
     return circleTemplate;
 }
 
-vector<Coin> coinClassifier(vector<Coin> coins){
+vector<Coin> coinClassifier(vector<Coin> coins, Mat_<COR> coinsPicture){
     int maxRadius = 0;
     for(vector<Coin>::iterator coin = coins.begin(); coin != coins.end(); ++coin){
         if(coin->radius > maxRadius){
@@ -93,6 +93,22 @@ vector<Coin> coinClassifier(vector<Coin> coins){
         }
         else if(coin->radiusNorm < .8){
             coin->value = .1;
+        }
+        else{
+            // moedas de 0.5 e 0.05 tem raio muito proximo
+            // separar pelo nivel de azul
+            Rect rec(coin->center.x - coin->radius,
+                     coin->center.y - coin->radius,
+                     2 * coin->radius,
+                     2 * coin->radius);
+            Mat_<COR> roi = coinsPicture(rec);
+            Scalar meanLevels = mean(roi);
+            if(meanLevels[0] > 70){
+                coin->value = .5;
+            }
+            else{
+                coin->value = .05;
+            }
         }
     }
     
@@ -203,7 +219,7 @@ int main(int argc, char** argv){
     cout << "Coins: " << coins.size() << endl;
 
     // classificando moedas
-    coins = coinClassifier(coins);
+    coins = coinClassifier(coins, resizedImage);
 
     // Pintando moedas na imagem
     for(vector<Coin>::iterator coinsIt = coins.begin(); coinsIt != coins.end(); ++coinsIt){
@@ -232,7 +248,7 @@ int main(int argc, char** argv){
         cout << "\tvalue: " << coinsIt->value << endl;
     }
 
-    //imp(resizedImage, argv[2]);
+    imp(resizedImage, argv[2]);
 
     return 0;
 }
