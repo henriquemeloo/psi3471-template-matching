@@ -82,9 +82,26 @@ vector<Coin> coinClassifier(vector<Coin> coins, Mat_<COR> coinsPicture){
             maxRadius = coin->radius;
         }
     }
+    float meanBluePercentage = 0.0;
+    int meanCount = 0;
     for(vector<Coin>::iterator coin = coins.begin(); coin != coins.end(); ++coin){
         coin->radiusNorm = (float)coin->radius / (float)maxRadius;
         
+        // armazenar nivel percentual medio das moedas de 0.5 e 0.05
+        if(coin->radiusNorm >= .8 && coin->radiusNorm < .9){
+            Rect rec(coin->center.x - coin->radius,
+                     coin->center.y - coin->radius,
+                     2 * coin->radius,
+                     2 * coin->radius);
+            Mat_<COR> roi = coinsPicture(rec);
+            Scalar meanLevels = mean(roi);
+            meanBluePercentage += meanLevels[0] / (meanLevels[0] + meanLevels[1] + meanLevels[2]);
+            meanCount++;
+        }
+    }
+    meanBluePercentage /= meanCount;
+    cout << "mean blue percentage: " << meanBluePercentage << endl;
+    for(vector<Coin>::iterator coin = coins.begin(); coin != coins.end(); ++coin){
         if(coin->radiusNorm >= .98){
             coin->value = 1.0;
         }
@@ -103,7 +120,10 @@ vector<Coin> coinClassifier(vector<Coin> coins, Mat_<COR> coinsPicture){
                      2 * coin->radius);
             Mat_<COR> roi = coinsPicture(rec);
             Scalar meanLevels = mean(roi);
-            if(meanLevels[0] > 70){
+            float bluePercentage = meanLevels[0] / (meanLevels[0] + meanLevels[1] + meanLevels[2]);
+            cout << meanLevels[0] << "\t" << meanLevels[1] << "\t" << meanLevels[2];
+            cout << "\tbp: " << bluePercentage << endl;
+            if(bluePercentage > meanBluePercentage){
                 coin->value = .5;
             }
             else{
@@ -131,10 +151,6 @@ int main(int argc, char** argv){
     resize(originalImage, resizedImage, Size(0,0), ratio, ratio, INTER_NEAREST);
     cout << "Original image: " << originalImage.rows << "x" << originalImage.cols << "\n";
     cout << "Resized image: " << resizedImage.rows << "x" << resizedImage.cols << "\n";
-
-    // Convertendo imagem reduzida para niveis de cinza------------------
-    Mat_<GRY> greyscaleImage;
-    cvtColor(resizedImage, greyscaleImage, CV_BGR2GRAY);
     
     // Suavizando imagem -------------------------------------------------
     Mat_<COR> maskBuilder;
@@ -231,7 +247,7 @@ int main(int argc, char** argv){
         string s = stream.str();
         string coinText = string("R$") + s;
         putText(resizedImage, coinText, coinsIt->center, 
-                FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(0,0,255), 1, CV_AA);
+                FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(0,0,0), 1, CV_AA);
     }
     // Escrevendo total de moedas
     string coinsText = string("Ha ") + to_string(coins.size()) + " moedas.";
