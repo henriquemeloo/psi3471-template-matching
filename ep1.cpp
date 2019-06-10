@@ -75,6 +75,10 @@ Mat_<FLT> generateCircle(int size){
     return circleTemplate;
 }
 
+static double Max(double a, double b) {
+    return a >= b ? a : b;
+}
+
 vector<Coin> coinClassifier(vector<Coin> coins, Mat_<COR> coinsPicture){
     int maxRadius = 0;
     for(vector<Coin>::iterator coin = coins.begin(); coin != coins.end(); ++coin){
@@ -86,21 +90,8 @@ vector<Coin> coinClassifier(vector<Coin> coins, Mat_<COR> coinsPicture){
     int meanCount = 0;
     for(vector<Coin>::iterator coin = coins.begin(); coin != coins.end(); ++coin){
         coin->radiusNorm = (float)coin->radius / (float)maxRadius;
-        
-        // armazenar nivel percentual medio das moedas de 0.5 e 0.05
-        if(coin->radiusNorm >= .8 && coin->radiusNorm < .9){
-            Rect rec(coin->center.x - coin->radius,
-                     coin->center.y - coin->radius,
-                     2 * coin->radius,
-                     2 * coin->radius);
-            Mat_<COR> roi = coinsPicture(rec);
-            Scalar meanLevels = mean(roi);
-            meanBluePercentage += meanLevels[0] / (meanLevels[0] + meanLevels[1] + meanLevels[2]);
-            meanCount++;
-        }
     }
-    meanBluePercentage /= meanCount;
-    cout << "mean blue percentage: " << meanBluePercentage << endl;
+    
     for(vector<Coin>::iterator coin = coins.begin(); coin != coins.end(); ++coin){
         if(coin->radiusNorm >= .98){
             coin->value = 1.0;
@@ -113,17 +104,23 @@ vector<Coin> coinClassifier(vector<Coin> coins, Mat_<COR> coinsPicture){
         }
         else{
             // moedas de 0.5 e 0.05 tem raio muito proximo
-            // separar pelo nivel de azul
+            // separar pelo nivel de magenta
             Rect rec(coin->center.x - coin->radius,
                      coin->center.y - coin->radius,
                      2 * coin->radius,
                      2 * coin->radius);
             Mat_<COR> roi = coinsPicture(rec);
             Scalar meanLevels = mean(roi);
-            float bluePercentage = meanLevels[0] / (meanLevels[0] + meanLevels[1] + meanLevels[2]);
-            cout << meanLevels[0] << "\t" << meanLevels[1] << "\t" << meanLevels[2];
-            cout << "\tbp: " << bluePercentage << endl;
-            if(bluePercentage > meanBluePercentage){
+
+            double dr = (double)meanLevels[2] / 255;
+            double dg = (double)meanLevels[1] / 255;
+            double db = (double)meanLevels[0] / 255;
+            double k = 1 - Max(Max(dr, dg), db);
+            double c = (1 - dr - k) / (1 - k);
+            double m = (1 - dg - k) / (1 - k);
+            double y = (1 - db - k) / (1 - k);
+            //cout << "c: " << c << "\tm: " << m << "\ty: " << y << "\tk: " << k << endl;
+            if(m < .07){
                 coin->value = .5;
             }
             else{
@@ -238,30 +235,36 @@ int main(int argc, char** argv){
     coins = coinClassifier(coins, resizedImage);
 
     // Pintando moedas na imagem
-    for(vector<Coin>::iterator coinsIt = coins.begin(); coinsIt != coins.end(); ++coinsIt){
-        circle(resizedImage, coinsIt->center, 3, Scalar(0, 0, 255), -1);
-        circle(resizedImage, coinsIt->center, coinsIt->radius, Scalar(0, 0, 255), 2);
+    double ammount = 0.0;
+    for(vector<Coin>::iterator coin = coins.begin(); coin != coins.end(); ++coin){
+        circle(resizedImage, coin->center, 3, Scalar(0, 0, 255), -1);
+        circle(resizedImage, coin->center, coin->radius, Scalar(0, 0, 255), 2);
         
         stringstream stream;
-        stream << fixed << setprecision(2) << coinsIt->value;
+        stream << fixed << setprecision(2) << coin->value;
         string s = stream.str();
         string coinText = string("R$") + s;
-        putText(resizedImage, coinText, coinsIt->center, 
-                FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(0,0,0), 1, CV_AA);
+        putText(resizedImage, coinText, coin->center, 
+                FONT_HERSHEY_COMPLEX_SMALL, 0.5, cvScalar(0,0,0), 1, CV_AA);
+
+        ammount += coin->value;
     }
-    // Escrevendo total de moedas
-    string coinsText = string("Ha ") + to_string(coins.size()) + " moedas.";
+    // Escrevendo total de moedas e de dinheiro
+    string coinsText = string("Ha ") + to_string(coins.size()) + " moedas. ";
+    stringstream stream;
+    stream << fixed << setprecision(2) << ammount;
+    coinsText += string("Total R$ ") + stream.str() + ".";
     putText(resizedImage, coinsText, cvPoint(30,30), 
             FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(0,0,255), 1, CV_AA);
     
     mostra(resizedImage);
     
-    for(vector<Coin>::iterator coinsIt = coins.begin(); coinsIt != coins.end(); ++coinsIt){
-        cout << "(" << (coinsIt->center.x) << ", " << (coinsIt->center.y) << ")";
-        cout << "\tcorr: " << coinsIt->correlation;
-        cout << "\tradius: " << coinsIt->radius;
-        cout << "\tnormaized radius: " << coinsIt->radiusNorm;
-        cout << "\tvalue: " << coinsIt->value << endl;
+    for(vector<Coin>::iterator coin = coins.begin(); coin != coins.end(); ++coin){
+        cout << "(" << (coin->center.x) << ", " << (coin->center.y) << ")";
+        cout << "\tcorr: " << coin->correlation;
+        cout << "\tradius: " << coin->radius;
+        cout << "\tnormalized radius: " << coin->radiusNorm;
+        cout << "\tvalue: " << coin->value << endl;
     }
 
     imp(resizedImage, argv[2]);
