@@ -93,7 +93,7 @@ vector<Coin> coinClassifier(vector<Coin> coins, Mat_<COR> coinsPicture){
     }
     
     for(vector<Coin>::iterator coin = coins.begin(); coin != coins.end(); ++coin){
-        if(coin->radiusNorm >= .98){
+        if(coin->radiusNorm >= .975){
             coin->value = 1.0;
         }
         else if(coin->radiusNorm >= .9){
@@ -151,9 +151,9 @@ int main(int argc, char** argv){
     
     // Suavizando imagem -------------------------------------------------
     Mat_<COR> maskBuilder;
-    //GaussianBlur(resizedImage, maskBuilder, Size(5,5), 0);
+    GaussianBlur(resizedImage, maskBuilder, Size(5,5), 0);
     // Convertendo imagem suavizada para HSV -----------------------------
-    cvtColor(resizedImage, maskBuilder, CV_BGR2HSV);
+    cvtColor(maskBuilder, maskBuilder, CV_BGR2HSV);
     // Filtrando por niveis HSV ------------------------------------------
     Mat_<FLT> maskImage(maskBuilder.rows, maskBuilder.cols, 0.0);
     for (int i = 0; i < maskBuilder.total(); i++){
@@ -165,9 +165,9 @@ int main(int argc, char** argv){
         }
     }
     
-    //GaussianBlur(maskImage, maskImage, Size(5,5), 2, 2);
-    mostra(maskImage);
-    //imp(maskImage, "median_13_h_35.jpg");
+    //GaussianBlur(maskImage, maskImage, Size(5,5), 0);
+    medianBlur(maskImage, maskImage, 3);
+    //mostra(maskImage);
 
     Mat_<FLT> circleTemplate;
     Mat_<FLT> match;
@@ -237,14 +237,17 @@ int main(int argc, char** argv){
     // Pintando moedas na imagem
     double ammount = 0.0;
     for(vector<Coin>::iterator coin = coins.begin(); coin != coins.end(); ++coin){
-        circle(resizedImage, coin->center, 3, Scalar(0, 0, 255), -1);
+        //circle(resizedImage, coin->center, 3, Scalar(0, 0, 255), -1);
         circle(resizedImage, coin->center, coin->radius, Scalar(0, 0, 255), 2);
         
         stringstream stream;
         stream << fixed << setprecision(2) << coin->value;
         string s = stream.str();
         string coinText = string("R$") + s;
-        putText(resizedImage, coinText, coin->center, 
+        Size textSize = getTextSize(coinText, FONT_HERSHEY_COMPLEX_SMALL, 0.5, 1, 0);
+        Point textLocation = Point(coin->center.x - textSize.width / 2,
+                                    coin->center.y + textSize.height / 2);
+        putText(resizedImage, coinText, textLocation, 
                 FONT_HERSHEY_COMPLEX_SMALL, 0.5, cvScalar(0,0,0), 1, CV_AA);
 
         ammount += coin->value;
